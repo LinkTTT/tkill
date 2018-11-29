@@ -1,39 +1,48 @@
 #!/bin/bash
-name=$1
-adb root
-if [ ${#name} == "0" ]
+if [ "adbd cannot run as root in production builds" != "$(adb root)" ]
 then
-    echo "Print app name"
-    read name
-fi
-result=$(adb shell ps -ef |grep -i "$name")
-oldifs="$IFS"
-IFS=$'\n'
-arr=($result)
+    name=$1
+    if [ ${#name} == "0" ]
+    then
+        echo "Please print packagename:"
+        read name
+    fi
+    result=$(adb shell ps -ef |grep -i "$name")
+    oldifs="$IFS"
+    IFS=$'\n'
+    arr=($result)
 
-if [ ${#arr} == "0" ]
-then
-    echo "app not found"
+    if [ ${#arr} == "0" ]
+    then
+        echo "Process not found."
+    else
+        i=0
+        for file in ${arr[@]}
+        do
+            i=`expr $i + 1`;
+            echo "NO.$i        Packagename:  $(echo $file | awk '{print $8}')" |grep  $name
+        done 
+        IFS="$oldifs"
+        echo ""
+        echo "Got  ${#arr[@]} processes."
+        echo ""
+        if [ ${#arr[@]} -ge 1 ]
+        then
+            echo "Which process do you want to kill? (print number):"
+            read number
+            read -a WORDS <<< $number
+            for i in ${WORDS[@]}
+            do
+                num=`expr $i - 1`; 
+                if [ $num -ge 0 ]
+                then
+                    id="${arr[$num]:13:5}"
+                    adb shell kill "$id"
+                fi
+            done 
+        fi
+    fi
 else
-    i=0
-    for file in ${arr[@]}
-    do
-        i=`expr $i + 1`;
-        echo "count:$i        result: ${file}"
-    done 
-    IFS="$oldifs"
-    echo ""
-    echo "There are ${#arr[@]} results."
-    if [ ${#arr[@]} -ge 1 ]
-    then
-        echo "Please print the count number."
-        read count
-        num=`expr $count - 1`; 
-    fi
-    if [ $num -ge 0 ]
-    then
-    
-        id="${arr[$num]:13:5}"
-        adb shell kill "$id"
-    fi
+    echo "adbd cannot run as root in production builds"
 fi
+
